@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-
 void main() {
   runApp(const MyApp());
 }
@@ -26,92 +25,103 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class VehicleData {
-  double speed;
-  int range;
-  int modeStatus;
-  int contactorStatus;
-  double tripDistance;
-  int battery;
-  int chargerConnected;
-  int slowOrFastCharging;
-  int remainingChargingTime;
-  int indicators;
-  int lightBeam;
-  int absIndication;
-  int killSwitch;
-  int sideStand;
-  int vehicleError;
-  double frontWheelSpeed;
-  double rearWheelSpeed;
-  int absWarning;
-  int motorStatus;
-  int vehicleState;
-  int dpadValue;
-  int chargeByte1000;
-  int criticalError;
-  int thermalRunaway;
-  int highBatteryTemp;
-  int throttle;
-  int dcCurrentCCS2;
+class Vector3 {
+  double x;
+  double y;
+  double z;
 
-  VehicleData()
-      : speed = 0.0,
-        range = 120,
-        modeStatus = 0,
-        contactorStatus = 0,
-        tripDistance = 0.0,
-        battery = 75,
-        chargerConnected = 0,
-        slowOrFastCharging = 0,
-        remainingChargingTime = 0,
-        indicators = 0,
-        lightBeam = 0,
-        absIndication = 0,
-        killSwitch = 0,
-        sideStand = 0,
-        vehicleError = 0,
-        frontWheelSpeed = 0.0,
-        rearWheelSpeed = 0.0,
-        absWarning = 0,
-        motorStatus = 0,
-        vehicleState = 0,
-        dpadValue = 0,
-        criticalError = 0,
-        chargeByte1000 = 0,
-        thermalRunaway = 0,
-        highBatteryTemp = 0,
-        throttle = 0,
-        dcCurrentCCS2 = 0;
+  Vector3(this.x, this.y, this.z);
 
   Map<String, dynamic> toJson() => {
-        'speed': speed,
-        'range': range,
-        'modeStatus': modeStatus,
-        'contactorStatus': contactorStatus,
-        'tripDistance': tripDistance,
-        'battery': battery,
-        'chargerConnected': chargerConnected,
-        'slowOrFastCharging': slowOrFastCharging,
-        'remainingChargingTime': remainingChargingTime,
-        'indicators': indicators,
-        'lightBeam': lightBeam,
-        'absIndication': absIndication,
-        'killSwitch': killSwitch,
-        'sideStand': sideStand,
-        'vehicleError': vehicleError,
-        'frontWheelSpeed': speed,
-        'rearWheelSpeed': rearWheelSpeed,
-        'absWarning': absWarning,
-        'motorStatus': motorStatus,
-        'vehicleState': vehicleState,
-        'dpadValue': dpadValue,
-        'chargeByte1000': chargeByte1000,
-        'criticalError': criticalError,
-        'thermalRunaway': thermalRunaway,
-        'highBatteryTemp': highBatteryTemp,
+        'X': x,
+        'Y': y,
+        'Z': z,
+      };
+}
+
+class VehicleData {
+  int errorCode;
+  int alertCode;
+  int batterySOC;
+  int throttle;
+  double speed;
+  int dpad;
+  int killSwitch;
+  int highBeam;
+  int indicators;
+  int sideStand;
+  int absWarning;
+  int driveMode;
+  int motorStatus;
+  int pduState;
+  int chargingState;
+  int eslState;
+  int brakeStatus;
+  double batteryTemp;
+  double chargingCurrent;
+  double chargingVoltage;
+  double gpsLat;
+  double gpsLng;
+  Vector3 acc;
+  Vector3 gyro;
+  double odometer;
+  double tripA;
+
+  VehicleData()
+      : errorCode = 0,
+        alertCode = 0,
+        batterySOC = 75,
+        throttle = 0,
+        speed = 0.0,
+        dpad = 0,
+        killSwitch = 0,
+        highBeam = 0,
+        indicators = 0,
+        sideStand = 0,
+        absWarning = 0,
+        driveMode = 0,
+        motorStatus = 0,
+        pduState = 0,
+        chargingState = 0,
+        eslState = 0,
+        brakeStatus = 0,
+        batteryTemp = 0.0,
+        chargingCurrent = 0.0,
+        chargingVoltage = 0.0,
+        gpsLat = 0.0,
+        gpsLng = 0.0,
+        acc = Vector3(0.0, 0.0, 0.0),
+        gyro = Vector3(0.0, 0.0, 0.0),
+        odometer = 0.0,
+        tripA = 0.0;
+
+  Map<String, dynamic> toJson() => {
+        'error_code': errorCode,
+        'alert_code': alertCode,
+        'battery_soc': batterySOC,
         'throttle': throttle,
-        'dcCurrentCCS2': dcCurrentCCS2,
+        'speed': speed,
+        'dpad': dpad,
+        'killsw': killSwitch,
+        'highbeam': highBeam,
+        'indicators': indicators,
+        'sidestand': sideStand,
+        'abs_warning': absWarning,
+        'drivemode': driveMode,
+        'motor_status': motorStatus,
+        'pdu_state': pduState,
+        'charging_state': chargingState,
+        'esl_state': eslState,
+        'brake_status': brakeStatus,
+        'battery_temp': batteryTemp,
+        'charging_current': chargingCurrent,
+        'charging_voltage': chargingVoltage,
+        'gps_latitude': gpsLat,
+        'gps_longitude': gpsLng,
+        'acc': acc.toJson(),
+        'gyro': gyro.toJson(),
+        'odometer': odometer,
+        'trip_a': tripA,
       };
 }
 
@@ -134,7 +144,32 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
   double targetSpeed = 0.0;
   final double accelerationTime = 3.5;
   final double decelerationTime = 4.0;
-  double _lastWrittenSpeed = 0.0;
+
+  int _gpsToggleIndex = 0;
+  int _motionIndex = 0;
+
+  final List<List<double>> _gpsPoints = [
+    [13.017953, 80.173781],
+    [13.001177, 80.256496],
+    [13.043505, 80.149617],
+    [13.043401, 80.253390],
+  ];
+
+  final List<Vector3> dummyAccList = [
+    Vector3(0.0, 0.0, 0.0),
+    Vector3(1.1, -0.5, 0.3),
+    Vector3(-0.3, 2.2, -1.0),
+    Vector3(0.0, 9.8, 0.0),
+    Vector3(3.5, 1.2, -2.3),
+  ];
+
+  final List<Vector3> dummyGyroList = [
+    Vector3(0.0, 0.0, 0.0),
+    Vector3(0.1, 0.2, 0.3),
+    Vector3(-0.5, -0.1, 0.6),
+    Vector3(1.0, 0.0, 0.0),
+    Vector3(0.3, -0.3, 0.8),
+  ];
 
   Map<int, int> modeThrottleLimits = {
     0: 128,
@@ -161,9 +196,9 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
   }
 
   double calculateAcceleration(double currentSpeed) {
-    final maxSpeed = modeMaxSpeeds[vehicleData.modeStatus] ?? 75.0;
+    final maxSpeed = modeMaxSpeeds[vehicleData.driveMode] ?? 75.0;
     final maxThrottle =
-        modeThrottleLimits[vehicleData.modeStatus] ?? 26; // 26 is ~10% of 255
+        modeThrottleLimits[vehicleData.driveMode] ?? 26; // 26 is ~10% of 255
 
     if (isAccelerating) {
       setState(() {
@@ -190,10 +225,10 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
 
   Future<void> startServer() async {
     try {
-      server = await ServerSocket.bind(InternetAddress.anyIPv4, 5500);
+      server = await ServerSocket.bind(InternetAddress.anyIPv4, 9090);
       setState(() {
         isServerRunning = true;
-        serverStatus = 'Server Running on Port 5500';
+        serverStatus = 'Server Running on Port 9090';
       });
 
       server!.listen((client) {
@@ -255,12 +290,12 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
         vehicleData.speed += acceleration;
 
         // Ensure speed stays within bounds
-        final maxSpeed = modeMaxSpeeds[vehicleData.modeStatus] ?? 75.0;
+        final maxSpeed = modeMaxSpeeds[vehicleData.driveMode] ?? 75.0;
         vehicleData.speed = vehicleData.speed.clamp(0.0, maxSpeed);
       });
 
       final jsonData = jsonEncode(vehicleData.toJson());
-      print(jsonData + '\n');
+      // print('$jsonData\n'); ///TODO: COMMENTED OUT. ISOLATED CHECKS ONGOING
       for (var client in clients) {
         try {
           client.write(jsonData);
@@ -271,11 +306,12 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
     }
   }
 
-
   void updateAndSendChargeData() {
     setState(() {
-      vehicleData.battery = (vehicleData.battery + 1).clamp(0, 101);
-      if (vehicleData.battery > 100) vehicleData.battery = 0;
+      vehicleData.batterySOC = (vehicleData.batterySOC + 1).clamp(0, 101);
+      if (vehicleData.batterySOC > 100) vehicleData.batterySOC = 0;
+      vehicleData.batteryTemp = (vehicleData.batteryTemp + 1).clamp(24, 57);
+      if (vehicleData.batteryTemp > 57) vehicleData.batteryTemp = 24;
     });
 
     final jsonData = jsonEncode(vehicleData.toJson());
@@ -295,106 +331,152 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
       }
 
       switch (event.logicalKey.keyLabel) {
-        case '1':
-          if (vehicleData.chargerConnected == 0) {
-            setState(() => vehicleData.chargerConnected = 1);
-          }
-          break;
-        case '2':
-          setState(() =>
-              vehicleData.vehicleState = (vehicleData.vehicleState + 1) % 3);
-          break;
-        case '4':
+        case '!':
           setState(
-              () => vehicleData.indicators = (vehicleData.indicators + 1) % 5);
+              () => vehicleData.indicators = (vehicleData.errorCode + 1) % 4);
           break;
-        case '5':
+        case '@':
+          setState(
+              () => vehicleData.indicators = (vehicleData.alertCode + 1) % 4);
+          break;
+
+        case '`':
           setState(() {
-            vehicleData.lightBeam = vehicleData.lightBeam == 0 ? 1 : 0;
+            _motionIndex = (_motionIndex + 1) % dummyAccList.length;
+            vehicleData.acc = dummyAccList[_motionIndex];
+            vehicleData.gyro = dummyGyroList[_motionIndex];
           });
           break;
-        case '6':
-          setState(() => vehicleData.absIndication =
-              vehicleData.absIndication == 0 ? 1 : 0);
+
+        case '-':
+          setState(() {
+            vehicleData.chargingCurrent =
+                vehicleData.chargingCurrent == 12 ? 1 : 0;
+          });
+          break;
+
+        case '1':
+          setState(() {
+            ///TODO: FREE
+          });
+
+          break;
+        case '2': //KILL SWITCH and MOTOR STATUS Toggle
+          setState(() {
+            if (vehicleData.killSwitch == 0) {
+              vehicleData.killSwitch = 1;
+            } else if (vehicleData.killSwitch == 1 &&
+                vehicleData.motorStatus == 0) {
+              vehicleData.motorStatus = 1;
+            } else if (vehicleData.killSwitch == 1 &&
+                vehicleData.motorStatus == 1) {
+              vehicleData.killSwitch = 0;
+              vehicleData.motorStatus = 0;
+            }
+          });
+          break;
+        case '4': // Indicators Toggle
+          setState(
+              () => vehicleData.indicators = (vehicleData.indicators + 1) % 4);
+          break;
+        case '5': // High Beam Toggle
+          setState(() {
+            vehicleData.highBeam = vehicleData.highBeam == 0 ? 1 : 0;
+          });
+          break;
+        case '6': // Abs Warning Toggle
+          setState(() =>
+              vehicleData.absWarning = vehicleData.absWarning == 0 ? 1 : 0);
           break;
         case '7':
-          setState(() =>
-              vehicleData.killSwitch = vehicleData.killSwitch == 0 ? 1 : 0);
+          setState(
+            () {
+              /// TODO: FREE
+            },
+          );
           break;
-        case '8':
+        case '8': // Side Stand Toggle
           setState(
               () => vehicleData.sideStand = vehicleData.sideStand == 0 ? 1 : 0);
           break;
         case '9':
-          setState(() =>
-              vehicleData.vehicleError = vehicleData.vehicleError == 0 ? 1 : 0);
+          setState(() {
+            ///TODO: FREE
+          });
           break;
         case 'C':
-          setState(
-            () {
-              vehicleData.contactorStatus =
-                  vehicleData.contactorStatus == 0 ? 2 : 0;
-              vehicleData.chargeByte1000 =
-                  vehicleData.chargeByte1000 == 0 ? 1 : 0;
-            },
-          );
+          setState(() {
+            vehicleData.pduState = (vehicleData.pduState == 4) ? 5 : 4;
+          });
+          break;
+
+        case 'E':
+          setState(() {
+            vehicleData.eslState = (vehicleData.eslState + 1) % 3;
+          });
+          break;
+
+        case 'P':
+          setState(() {
+            vehicleData.pduState = (vehicleData.pduState + 1) % 6;
+          });
           break;
         case 'X':
-          setState(
-            () {
-              vehicleData.criticalError =
-                  vehicleData.criticalError == 0 ? 8 : 0;
-            },
-          );
+          setState(() {
+            ///TODO: FREE
+          });
           break;
 
         case 'B':
-          setState(() =>
-              vehicleData.dcCurrentCCS2 = (vehicleData.dcCurrentCCS2 + 1) % 14);
+          setState(() {
+            vehicleData.brakeStatus = vehicleData.brakeStatus == 0 ? 1 : 0;
+          });
           break;
 
         case 'T':
-          setState(
-            () {
-              vehicleData.thermalRunaway =
-                  vehicleData.thermalRunaway == 0 ? 1 : 0;
-            },
-          );
+          setState(() {
+            ///TODO: FREE
+          });
           break;
         case 'H':
-          setState(
-            () {
-              vehicleData.highBatteryTemp =
-                  vehicleData.highBatteryTemp == 0 ? 1 : 0;
-            },
-          );
+          setState(() {
+            ///TODO: FREE
+          });
           break;
 
-        case 'M':
+        case 'l': // Toggle Lat-Lng
           setState(() {
-            vehicleData.modeStatus = (vehicleData.modeStatus + 1) % 6;
+            _gpsToggleIndex = (_gpsToggleIndex + 1) % _gpsPoints.length;
+            vehicleData.gpsLat = _gpsPoints[_gpsToggleIndex][0];
+            vehicleData.gpsLng = _gpsPoints[_gpsToggleIndex][1];
+          });
+          break;
+
+        case 'M': // Drive Mode Toggle
+          setState(() {
+            vehicleData.driveMode = (vehicleData.driveMode + 1) % 6;
             vehicleData.speed = vehicleData.speed
-                .clamp(0.0, modeMaxSpeeds[vehicleData.modeStatus] ?? 75.0);
+                .clamp(0.0, modeMaxSpeeds[vehicleData.driveMode] ?? 75.0);
           });
           break;
-        case 'W':
+        case 'W': // UP
           setState(() {
-            vehicleData.dpadValue = 1;
+            vehicleData.dpad |= (1 << 1);
           });
           break;
-        case 'D':
+        case 'D': // RIGHT
           setState(() {
-            vehicleData.dpadValue = 2;
+            vehicleData.dpad |= (1 << 2);
           });
           break;
-        case 'A':
+        case 'A': // LEFT
           setState(() {
-            vehicleData.dpadValue = 3;
+            vehicleData.dpad |= (1 << 0);
           });
           break;
-        case 'S':
+        case 'S': // BOTTOM
           setState(() {
-            vehicleData.dpadValue = 4;
+            vehicleData.dpad |= (1 << 3);
           });
           break;
       }
@@ -402,9 +484,23 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
       if (event.logicalKey == LogicalKeyboardKey.space) {
         setState(() => isAccelerating = false);
       }
-      if (['W', 'D', 'A', 'S'].contains(event.logicalKey.keyLabel)) {
-        setState(() => vehicleData.dpadValue = 0);
-      }
+
+      setState(() {
+        switch (event.logicalKey.keyLabel.toUpperCase()) {
+          case 'W':
+            vehicleData.dpad &= ~(1 << 1); // Clear UP
+            break;
+          case 'D':
+            vehicleData.dpad &= ~(1 << 2); // Clear RIGHT
+            break;
+          case 'A':
+            vehicleData.dpad &= ~(1 << 0); // Clear LEFT
+            break;
+          case 'S':
+            vehicleData.dpad &= ~(1 << 3); // Clear BOTTOM
+            break;
+        }
+      });
     }
   }
 
@@ -506,35 +602,35 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
   }
 
   Widget _buildDataDisplay() {
-    return Expanded(
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Current Vehicle Data:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            Text('Speed: ${vehicleData.speed.toStringAsFixed(1)} km/h'),
-            Text(
-                'Throttle: ${vehicleData.throttle} (${(vehicleData.throttle / 255 * 100).toStringAsFixed(1)}%)'),
-            Text('Range: ${vehicleData.range} km'),
-            Text('Mode: ${vehicleData.modeStatus}'),
-            Text('Battery: ${vehicleData.battery}%'),
-            Text(
-                'Charger Connected: ${vehicleData.chargerConnected == 1 ? 'Yes' : 'No'}'),
-            Text('Vehicle State: ${vehicleData.vehicleState}'),
-            Text('DPad Value: ${vehicleData.dpadValue}'),
-            Text('Contactor Status: ${vehicleData.contactorStatus}'),
-            Text('Charge Byte: ${vehicleData.chargeByte1000}'),
-            Text('Critical Error: ${vehicleData.criticalError}'),
-            Text('Thermal Runaway: ${vehicleData.thermalRunaway}'),
-            Text('High Battery Temp: ${vehicleData.highBatteryTemp}'),
-            Text('CPDC: ${vehicleData.dcCurrentCCS2}'),
-          ],
-        ),
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Throttle: ${vehicleData.throttle}'),
+        Text('Speed: ${vehicleData.speed.toStringAsFixed(2)} km/h'),
+        Text('Battery SOC: ${vehicleData.batterySOC}%'),
+        Text('Drive Mode: ${vehicleData.driveMode}'),
+        Text('Kill Switch: ${vehicleData.killSwitch}'),
+        Text('Motor Status: ${vehicleData.motorStatus}'),
+        Text('High Beam: ${vehicleData.highBeam}'),
+        Text('Indicators: ${vehicleData.indicators}'),
+        Text('Side Stand: ${vehicleData.sideStand}'),
+        Text('ABS Warning: ${vehicleData.absWarning}'),
+        Text('PDU State: ${vehicleData.pduState}'),
+        Text('Charging State: ${vehicleData.chargingState}'),
+        Text('ESL State: ${vehicleData.eslState}'),
+        Text('Brake Status: ${vehicleData.brakeStatus}'),
+        Text('Battery Temp: ${vehicleData.batteryTemp.toStringAsFixed(1)} °C'),
+        Text(
+            'Charging Current: ${vehicleData.chargingCurrent.toStringAsFixed(1)} A'),
+        Text(
+            'Charging Voltage: ${vehicleData.chargingVoltage.toStringAsFixed(1)} V'),
+        Text(
+            'GPS: (${vehicleData.gpsLat.toStringAsFixed(6)}, ${vehicleData.gpsLng.toStringAsFixed(6)})'),
+        Text(
+            'Accelerometer: x=${vehicleData.acc.x.toStringAsFixed(2)}, y=${vehicleData.acc.y.toStringAsFixed(2)}, z=${vehicleData.acc.z.toStringAsFixed(2)}'),
+        Text(
+            'Gyroscope: x=${vehicleData.gyro.x.toStringAsFixed(2)}, y=${vehicleData.gyro.y.toStringAsFixed(2)}, z=${vehicleData.gyro.z.toStringAsFixed(2)}'),
+      ],
     );
   }
 }
