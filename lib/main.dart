@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'TellTalesDPadIndicatorPipe.dart';
 
 void main() {
   runApp(const MyApp());
@@ -136,9 +135,6 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
   final double accelerationTime = 3.5;
   final double decelerationTime = 4.0;
   double _lastWrittenSpeed = 0.0;
-  File? _pipeFile;
-  String get _pipePath =>
-      Platform.isWindows ? r'C:\tmp\can_data_pipe' : '/tmp/can_data_pipe';
 
   Map<int, int> modeThrottleLimits = {
     0: 128,
@@ -156,26 +152,6 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
   @override
   void initState() {
     super.initState();
-  }
-
-  Future<void> _initializePipe() async {
-    final pipeDir = Directory(Platform.isWindows ? r'C:\tmp' : '/tmp');
-
-    if (!await pipeDir.exists()) {
-      await pipeDir.create(recursive: true);
-    }
-
-    try {
-      _pipeFile = File(_pipePath);
-      if (!await _pipeFile!.exists()) {
-        await _pipeFile!.create();
-      }
-      // Clear existing content
-      await _pipeFile!.writeAsString('');
-      print('Successfully initialized pipe at: $_pipePath');
-    } catch (e) {
-      print('Error setting up pipe: $e');
-    }
   }
 
   @override
@@ -281,9 +257,6 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
         // Ensure speed stays within bounds
         final maxSpeed = modeMaxSpeeds[vehicleData.modeStatus] ?? 75.0;
         vehicleData.speed = vehicleData.speed.clamp(0.0, maxSpeed);
-
-        // Write speed data to pipe only if changed
-        _writeSpeedToPipe(vehicleData.speed);
       });
 
       final jsonData = jsonEncode(vehicleData.toJson());
@@ -298,20 +271,6 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
     }
   }
 
-  void _writeSpeedToPipe(double speed) async {
-    if (_pipeFile == null) return;
-
-    if ((speed - _lastWrittenSpeed).abs() > 0.1) {
-      try {
-        final speedString = speed.toStringAsFixed(1);
-        await _pipeFile!.writeAsString(speedString);
-        _lastWrittenSpeed = speed;
-        print('Wrote to pipe: $speedString');
-      } catch (e) {
-        print('Error writing to pipe: $e');
-      }
-    }
-  }
 
   void updateAndSendChargeData() {
     setState(() {
@@ -413,7 +372,7 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
 
         case 'M':
           setState(() {
-            vehicleData.modeStatus = (vehicleData.modeStatus + 1) % 5;
+            vehicleData.modeStatus = (vehicleData.modeStatus + 1) % 6;
             vehicleData.speed = vehicleData.speed
                 .clamp(0.0, modeMaxSpeeds[vehicleData.modeStatus] ?? 75.0);
           });
