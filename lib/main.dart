@@ -3,8 +3,30 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:window_manager/window_manager.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await windowManager.ensureInitialized();
+
+  WindowOptions windowOptions = const WindowOptions(
+    size: Size(380, 1080),
+    minimumSize: Size(380, 1080),
+    maximumSize: Size(380, 1080),
+    center: true,
+    backgroundColor: Colors.transparent,
+    skipTaskbar: false,
+    titleBarStyle: TitleBarStyle.normal,
+  );
+
+  windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowManager.setResizable(false);
+    await windowManager.setSize(const Size(380, 1080));
+    await windowManager.setAlignment(Alignment.topLeft);
+    await windowManager.show();
+    await windowManager.focus();
+  });
+
   runApp(const MyApp());
 }
 
@@ -42,8 +64,8 @@ class Vector3 {
 class VehicleData {
   int errorCode;
   int alertCode;
-  int batterySOC;
-  int throttle;
+  double batterySOC;
+  double throttle;
   double speed;
   int dpad;
   int killSwitch;
@@ -98,17 +120,17 @@ class VehicleData {
   Map<String, dynamic> toJson() => {
         'error_code': errorCode,
         'alert_code': alertCode,
-        'battery_soc': batterySOC,
-        'throttle': throttle,
-        'speed': speed,
-        'dpad': dpad,
-        'killsw': killSwitch,
-        'highbeam': highBeam,
-        'indicators': indicators,
-        'sidestand': sideStand,
-        'abs_warning': absWarning,
-        'drivemode': driveMode,
-        'motor_status': motorStatus,
+        'battery_soc': batterySOC, //
+        'throttle': throttle, //
+        'speed': speed, //
+        'dpad': dpad, //
+        'killsw': killSwitch, //
+        'highbeam': highBeam, //
+        'indicators': indicators, //
+        'sidestand': sideStand, //
+        'abs_warning': absWarning, //
+        'drivemode': driveMode, //
+        'motor_status': motorStatus, //
         'pdu_state': pduState,
         'charging_state': chargingState,
         'esl_state': eslState,
@@ -175,6 +197,8 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
     0: 128,
     1: 191,
     2: 255,
+    3: 20,
+    4: 20,
   };
 
   Map<int, double> modeMaxSpeeds = {
@@ -182,6 +206,7 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
     1: 90.0,
     2: 150.0,
     3: 5.0,
+    4: 5.0,
   };
 
   @override
@@ -203,7 +228,7 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
     if (isAccelerating) {
       setState(() {
         vehicleData.throttle =
-            (vehicleData.throttle + 10).clamp(0, maxThrottle);
+            (vehicleData.throttle + 10).clamp(0, maxThrottle).toDouble();
       });
 
       double throttlePercentage = vehicleData.throttle / 255.0;
@@ -217,7 +242,7 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
     } else {
       setState(() {
         vehicleData.throttle =
-            (vehicleData.throttle - 15).clamp(0, maxThrottle);
+            (vehicleData.throttle - 15).clamp(0, maxThrottle).toDouble();
       });
       return -currentSpeed / (decelerationTime * 20);
     }
@@ -454,7 +479,7 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
 
         case 'M': // Drive Mode Toggle
           setState(() {
-            vehicleData.driveMode = (vehicleData.driveMode + 1) % 6;
+            vehicleData.driveMode = (vehicleData.driveMode + 1) % 5;
             vehicleData.speed = vehicleData.speed
                 .clamp(0.0, modeMaxSpeeds[vehicleData.driveMode] ?? 75.0);
           });
@@ -551,28 +576,32 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
   }
 
   Widget _buildControlGrid() {
-    return GridView.count(
-      shrinkWrap: true,
-      crossAxisCount: 2,
-      childAspectRatio: 4.5,
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
-      children: [
-        _buildControlButton('1', 'Toggle Charger'),
-        _buildControlButton('2', 'Cycle Vehicle State'),
-        _buildControlButton('4', 'Toggle Indicators'),
-        _buildControlButton('5', 'Toggle Lights'),
-        _buildControlButton('6', 'Toggle ABS'),
-        _buildControlButton('7', 'Toggle Kill Switch'),
-        _buildControlButton('8', 'Toggle Side Stand'),
-        _buildControlButton('9', 'Toggle Error'),
-        _buildControlButton('C', 'Charge State'),
-        _buildControlButton('M', 'Cycle Mode'),
-        _buildControlButton('Spacebar', 'Speed'),
-        _buildControlButton('X', 'Critical Error'),
-        _buildControlButton('T', 'Thermal Runaway'),
-        _buildControlButton('H', 'High Battery Temp'),
-      ],
+    return SizedBox(
+      width: 330,
+      height: 330,
+      child: GridView.count(
+        shrinkWrap: true,
+        crossAxisCount: 3,
+        childAspectRatio: 2,
+        mainAxisSpacing: 5,
+        crossAxisSpacing: 5,
+        children: [
+          _buildControlButton('1', 'Toggle Charger'),
+          _buildControlButton('2', 'Cycle Vehicle State'),
+          _buildControlButton('4', 'Toggle Indicators'),
+          _buildControlButton('5', 'Toggle Lights'),
+          _buildControlButton('6', 'Toggle ABS'),
+          _buildControlButton('7', 'Toggle Kill Switch'),
+          _buildControlButton('8', 'Toggle Side Stand'),
+          _buildControlButton('9', 'Toggle Error'),
+          _buildControlButton('C', 'Charge State'),
+          _buildControlButton('M', 'Cycle Mode'),
+          _buildControlButton('Spacebar', 'Speed'),
+          _buildControlButton('X', 'Critical Error'),
+          _buildControlButton('T', 'Thermal Runaway'),
+          _buildControlButton('H', 'High Battery Temp'),
+        ],
+      ),
     );
   }
 
