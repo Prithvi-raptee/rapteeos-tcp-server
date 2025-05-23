@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-
 void main() {
   runApp(const MyApp());
 }
@@ -136,6 +135,12 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
   final double decelerationTime = 4.0;
   double _lastWrittenSpeed = 0.0;
 
+  // Add focus node for better keyboard handling
+  late FocusNode _focusNode;
+
+  // Track key states to prevent duplicate events
+  final Set<LogicalKeyboardKey> _pressedKeys = <LogicalKeyboardKey>{};
+
   Map<int, int> modeThrottleLimits = {
     0: 128,
     1: 191,
@@ -152,11 +157,17 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
   @override
   void initState() {
     super.initState();
+    _focusNode = FocusNode();
+    // Request focus after the widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+    });
   }
 
   @override
   void dispose() {
     stopServer();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -271,7 +282,6 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
     }
   }
 
-
   void updateAndSendChargeData() {
     setState(() {
       vehicleData.battery = (vehicleData.battery + 1).clamp(0, 101);
@@ -288,132 +298,160 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
     }
   }
 
-  void handleKeyPress(RawKeyEvent event) {
-    if (event is RawKeyDownEvent) {
-      if (event.logicalKey == LogicalKeyboardKey.space) {
-        setState(() => isAccelerating = true);
-      }
+  // Improved keyboard handling with better error handling
+  bool handleKeyEvent(KeyEvent event) {
+    try {
+      if (event is KeyDownEvent) {
+        // Check if we've already processed this key to avoid duplicates
+        if (_pressedKeys.contains(event.logicalKey)) {
+          return true; // Already handled
+        }
+        _pressedKeys.add(event.logicalKey);
 
-      switch (event.logicalKey.keyLabel) {
-        case '1':
-          if (vehicleData.chargerConnected == 0) {
-            setState(() => vehicleData.chargerConnected = 1);
-          }
-          break;
-        case '2':
-          setState(() =>
-              vehicleData.vehicleState = (vehicleData.vehicleState + 1) % 3);
-          break;
-        case '4':
-          setState(
-              () => vehicleData.indicators = (vehicleData.indicators + 1) % 5);
-          break;
-        case '5':
-          setState(() {
-            vehicleData.lightBeam = vehicleData.lightBeam == 0 ? 1 : 0;
-          });
-          break;
-        case '6':
-          setState(() => vehicleData.absIndication =
-              vehicleData.absIndication == 0 ? 1 : 0);
-          break;
-        case '7':
-          setState(() =>
-              vehicleData.killSwitch = vehicleData.killSwitch == 0 ? 1 : 0);
-          break;
-        case '8':
-          setState(
-              () => vehicleData.sideStand = vehicleData.sideStand == 0 ? 1 : 0);
-          break;
-        case '9':
-          setState(() =>
-              vehicleData.vehicleError = vehicleData.vehicleError == 0 ? 1 : 0);
-          break;
-        case 'C':
-          setState(
-            () {
-              vehicleData.contactorStatus =
-                  vehicleData.contactorStatus == 0 ? 2 : 0;
-              vehicleData.chargeByte1000 =
-                  vehicleData.chargeByte1000 == 0 ? 1 : 0;
-            },
-          );
-          break;
-        case 'X':
-          setState(
-            () {
-              vehicleData.criticalError =
-                  vehicleData.criticalError == 0 ? 8 : 0;
-            },
-          );
-          break;
+        if (event.logicalKey == LogicalKeyboardKey.space) {
+          setState(() => isAccelerating = true);
+          return true;
+        }
 
-        case 'B':
-          setState(() =>
-              vehicleData.dcCurrentCCS2 = (vehicleData.dcCurrentCCS2 + 1) % 14);
-          break;
+        switch (event.logicalKey.keyLabel) {
+          case '1':
+            if (vehicleData.chargerConnected == 0) {
+              setState(() => vehicleData.chargerConnected = 1);
+            }
+            break;
+          case '2':
+            setState(() =>
+                vehicleData.vehicleState = (vehicleData.vehicleState + 1) % 3);
+            break;
+          case '4':
+            setState(() =>
+                vehicleData.indicators = (vehicleData.indicators + 1) % 5);
+            break;
+          case '5':
+            setState(() {
+              vehicleData.lightBeam = vehicleData.lightBeam == 0 ? 1 : 0;
+            });
+            break;
+          case '6':
+            setState(() => vehicleData.absIndication =
+                vehicleData.absIndication == 0 ? 1 : 0);
+            break;
+          case '7':
+            setState(() =>
+                vehicleData.killSwitch = vehicleData.killSwitch == 0 ? 1 : 0);
+            break;
+          case '8':
+            setState(() =>
+                vehicleData.sideStand = vehicleData.sideStand == 0 ? 1 : 0);
+            break;
+          case '9':
+            setState(() => vehicleData.vehicleError =
+                vehicleData.vehicleError == 0 ? 1 : 0);
+            break;
+          case 'C':
+          case 'c':
+            setState(
+              () {
+                vehicleData.contactorStatus =
+                    vehicleData.contactorStatus == 0 ? 2 : 0;
+                vehicleData.chargeByte1000 =
+                    vehicleData.chargeByte1000 == 0 ? 1 : 0;
+              },
+            );
+            break;
+          case 'X':
+          case 'x':
+            setState(
+              () {
+                vehicleData.criticalError =
+                    vehicleData.criticalError == 0 ? 8 : 0;
+              },
+            );
+            break;
+          case 'B':
+          case 'b':
+            setState(() => vehicleData.dcCurrentCCS2 =
+                (vehicleData.dcCurrentCCS2 + 1) % 14);
+            break;
+          case 'T':
+          case 't':
+            setState(
+              () {
+                vehicleData.thermalRunaway =
+                    vehicleData.thermalRunaway == 0 ? 1 : 0;
+              },
+            );
+            break;
+          case 'H':
+          case 'h':
+            setState(
+              () {
+                vehicleData.highBatteryTemp =
+                    vehicleData.highBatteryTemp == 0 ? 1 : 0;
+              },
+            );
+            break;
+          case 'M':
+          case 'm':
+            setState(() {
+              vehicleData.modeStatus = (vehicleData.modeStatus + 1) % 6;
+              vehicleData.speed = vehicleData.speed
+                  .clamp(0.0, modeMaxSpeeds[vehicleData.modeStatus] ?? 75.0);
+            });
+            break;
+          case 'W':
+          case 'w':
+            setState(() {
+              vehicleData.dpadValue = 1;
+            });
+            break;
+          case 'D':
+          case 'd':
+            setState(() {
+              vehicleData.dpadValue = 2;
+            });
+            break;
+          case 'A':
+          case 'a':
+            setState(() {
+              vehicleData.dpadValue = 3;
+            });
+            break;
+          case 'S':
+          case 's':
+            setState(() {
+              vehicleData.dpadValue = 4;
+            });
+            break;
+        }
+        return true;
+      } else if (event is KeyUpEvent) {
+        _pressedKeys.remove(event.logicalKey);
 
-        case 'T':
-          setState(
-            () {
-              vehicleData.thermalRunaway =
-                  vehicleData.thermalRunaway == 0 ? 1 : 0;
-            },
-          );
-          break;
-        case 'H':
-          setState(
-            () {
-              vehicleData.highBatteryTemp =
-                  vehicleData.highBatteryTemp == 0 ? 1 : 0;
-            },
-          );
-          break;
-
-        case 'M':
-          setState(() {
-            vehicleData.modeStatus = (vehicleData.modeStatus + 1) % 6;
-            vehicleData.speed = vehicleData.speed
-                .clamp(0.0, modeMaxSpeeds[vehicleData.modeStatus] ?? 75.0);
-          });
-          break;
-        case 'W':
-          setState(() {
-            vehicleData.dpadValue = 1;
-          });
-          break;
-        case 'D':
-          setState(() {
-            vehicleData.dpadValue = 2;
-          });
-          break;
-        case 'A':
-          setState(() {
-            vehicleData.dpadValue = 3;
-          });
-          break;
-        case 'S':
-          setState(() {
-            vehicleData.dpadValue = 4;
-          });
-          break;
+        if (event.logicalKey == LogicalKeyboardKey.space) {
+          setState(() => isAccelerating = false);
+          return true;
+        }
+        if (['W', 'D', 'A', 'S', 'w', 'd', 'a', 's']
+            .contains(event.logicalKey.keyLabel)) {
+          setState(() => vehicleData.dpadValue = 0);
+          return true;
+        }
       }
-    } else if (event is RawKeyUpEvent) {
-      if (event.logicalKey == LogicalKeyboardKey.space) {
-        setState(() => isAccelerating = false);
-      }
-      if (['W', 'D', 'A', 'S'].contains(event.logicalKey.keyLabel)) {
-        setState(() => vehicleData.dpadValue = 0);
-      }
+      return false;
+    } catch (e) {
+      // Log the error but don't crash the app
+      print('Error handling key event: $e');
+      return false;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return RawKeyboardListener(
-      focusNode: FocusNode(),
+    return KeyboardListener(
+      focusNode: _focusNode,
       autofocus: true,
-      onKey: handleKeyPress,
+      onKeyEvent: handleKeyEvent,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('RapteeOS TCP Server'),
@@ -424,30 +462,50 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
             ),
           ],
         ),
-        body: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Server Status: $serverStatus',
-                style: const TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'Connected Clients: ${clients.length}',
-                style: const TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Controls:',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-              _buildControlGrid(),
-              const SizedBox(height: 20),
-              _buildDataDisplay(),
-            ],
+        body: GestureDetector(
+          onTap: () {
+            // Ensure focus is maintained when clicking in the app
+            _focusNode.requestFocus();
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Server Status: $serverStatus',
+                  style: const TextStyle(fontSize: 16),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Connected Clients: ${clients.length}',
+                  style: const TextStyle(fontSize: 16),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _focusNode.hasFocus
+                        ? Colors.green.withOpacity(0.2)
+                        : Colors.red.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'Keyboard Focus: ${_focusNode.hasFocus ? "Active" : "Inactive"} - Click here to activate',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Controls:',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10),
+                _buildControlGrid(),
+                const SizedBox(height: 20),
+                _buildDataDisplay(),
+              ],
+            ),
           ),
         ),
       ),
