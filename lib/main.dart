@@ -52,6 +52,7 @@ class VehicleData {
   int thermalRunaway;
   int highBatteryTemp;
   int throttle;
+  int regenLevel;
   int dcCurrentCCS2;
 
   VehicleData()
@@ -81,6 +82,7 @@ class VehicleData {
         thermalRunaway = 0,
         highBatteryTemp = 0,
         throttle = 0,
+        regenLevel = 0,
         dcCurrentCCS2 = 0;
 
   Map<String, dynamic> toJson() => {
@@ -110,6 +112,7 @@ class VehicleData {
         'thermalRunaway': thermalRunaway,
         'highBatteryTemp': highBatteryTemp,
         'throttle': throttle,
+        'regenLevel': regenLevel,
         'dcCurrentCCS2': dcCurrentCCS2,
       };
 }
@@ -398,6 +401,11 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
               vehicleData.speed = vehicleData.speed
                   .clamp(0.0, modeMaxSpeeds[vehicleData.modeStatus] ?? 75.0);
             });
+          case 'r':
+          case 'R':
+            setState(() {
+              vehicleData.regenLevel = (vehicleData.regenLevel + 1) % 10;
+            });
             break;
           case 'W':
           case 'w':
@@ -590,6 +598,7 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
             Text('Thermal Runaway: ${vehicleData.thermalRunaway}'),
             Text('High Battery Temp: ${vehicleData.highBatteryTemp}'),
             Text('CPDC: ${vehicleData.dcCurrentCCS2}'),
+            Text('Regen Level: ${vehicleData.regenLevel}'),
           ],
         ),
       ),
