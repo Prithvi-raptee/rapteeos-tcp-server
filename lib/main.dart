@@ -55,15 +55,16 @@ class Vector3 {
   Vector3(this.x, this.y, this.z);
 
   Map<String, dynamic> toJson() => {
-    'X': x,
-    'Y': y,
-    'Z': z,
-  };
+        'X': x,
+        'Y': y,
+        'Z': z,
+      };
 }
 
 class VehicleData {
-  int errorCode;
-  int alertCode;
+  // MODIFIED: Replaced single int codes with lists
+  List<int> errors;
+  List<int> alerts;
   double batterySOC;
   double throttle;
   double speed;
@@ -94,8 +95,9 @@ class VehicleData {
   int chargingModeAC; // Actual AC charging mode
 
   VehicleData()
-      : errorCode = 0,
-        alertCode = 0,
+      : // MODIFIED: Initialize lists instead of ints
+        errors = [],
+        alerts = [],
         batterySOC = 0,
         throttle = 0,
         speed = 0.0,
@@ -126,38 +128,38 @@ class VehicleData {
         chargingModeAC = 0; // Actual
 
   Map<String, dynamic> toJson() => {
-    'error_code': errorCode,
-    'alert_code': alertCode,
-    'battery_soc': batterySOC,
-    'throttle': throttle,
-    'speed': speed,
-    'dpad': dpad,
-    'killsw': killSwitch,
-    'highbeam': highBeam,
-    'indicators': indicators,
-    'sidestand': sideStand,
-    'abs_warning': absWarning,
-    'drivemode': driveMode,
-    'motor_status': motorStatus,
-    'pdu_state': pduState,
-    'charging_state': chargingState,
-    'esl_state': eslState,
-    'brake_status': brakeStatus,
-    'battery_temp': batteryTemp,
-    'charging_current': chargingCurrent,
-    'charging_voltage': chargingVoltage,
-    'gps_latitude': gpsLat,
-    'gps_longitude': gpsLng,
-    'acc': acc.toJson(),
-    'gyro': gyro.toJson(),
-    'odometer': odometer,
-    'trip_a': tripA,
-    'regen_level': regenLevel, // Send actual regen_level
-    'whp_km': whpKm,
-    'motor_temp': motorTemp,
-    'charging_mode_ac': chargingModeAC, // Send actual charging_mode_ac
-    // 'set_regen_level' and 'set_charging_mode_ac' are no longer sent
-  };
+        // MODIFIED: Send lists of codes with the correct keys
+        'errors': errors,
+        'alerts': alerts,
+        'battery_soc': batterySOC,
+        'throttle': throttle,
+        'speed': speed,
+        'dpad': dpad,
+        'killsw': killSwitch,
+        'highbeam': highBeam,
+        'indicators': indicators,
+        'sidestand': sideStand,
+        'abs_warning': absWarning,
+        'drivemode': driveMode,
+        'motor_status': motorStatus,
+        'pdu_state': pduState,
+        'charging_state': chargingState,
+        'esl_state': eslState,
+        'brake_status': brakeStatus,
+        'battery_temp': batteryTemp,
+        'charging_current': chargingCurrent,
+        'charging_voltage': chargingVoltage,
+        'gps_latitude': gpsLat,
+        'gps_longitude': gpsLng,
+        'acc': acc.toJson(),
+        'gyro': gyro.toJson(),
+        'odometer': odometer,
+        'trip_a': tripA,
+        'regen_level': regenLevel,
+        'whp_km': whpKm,
+        'motor_temp': motorTemp,
+        'charging_mode_ac': chargingModeAC,
+      };
 }
 
 class VehicleSimulator extends StatefulWidget {
@@ -182,6 +184,21 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
   int _gpsToggleIndex = 0;
   int _motionIndex = 0;
   int _motorTempIndex = 0;
+
+  // ADDED: State for cycling through error and alert codes
+  int _errorIndex = 0;
+  final List<List<int>> _errorCycles = [
+    [],
+    [0, 2],
+    [3]
+  ];
+
+  int _alertIndex = 0;
+  final List<List<int>> _alertCycles = [
+    [],
+    [0, 3],
+    [2]
+  ];
 
   final List<int> _motorTempList = [34, 77, 89, 95];
 
@@ -277,7 +294,7 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
         });
 
         client.listen(
-              (rawData) {
+          (rawData) {
             try {
               final message = utf8.decode(rawData);
               final command = jsonDecode(message) as Map<String, dynamic>;
@@ -289,7 +306,7 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
                 final newRegenSetValue = command['set_regen_level'];
                 if (newRegenSetValue is int) {
                   setState(() {
-                    vehicleData.regenLevel = newRegenSetValue.clamp(0, 3); // Update actual regen level
+                    vehicleData.regenLevel = newRegenSetValue.clamp(0, 3);
                     print(
                         'Server: Updated regenLevel to ${vehicleData.regenLevel} from client command.');
                     dataChanged = true;
@@ -299,11 +316,10 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
 
               if (command.containsKey('set_charging_mode_ac')) {
                 final newChargingModeACSetValue =
-                command['set_charging_mode_ac'];
+                    command['set_charging_mode_ac'];
                 if (newChargingModeACSetValue is int) {
                   setState(() {
-                    // You might want to clamp this value too if there's a defined range
-                    vehicleData.chargingModeAC = newChargingModeACSetValue; // Update actual charging mode
+                    vehicleData.chargingModeAC = newChargingModeACSetValue;
                     print(
                         'Server: Updated chargingModeAC to ${vehicleData.chargingModeAC} from client command.');
                     dataChanged = true;
@@ -446,10 +462,10 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
 
       switch (event.logicalKey.keyLabel.toUpperCase()) {
         case '!':
-          setState(() => vehicleData.errorCode = (vehicleData.errorCode + 1) % 4);
+          // This key is now less relevant, but kept for legacy
           break;
         case '@':
-          setState(() => vehicleData.alertCode = (vehicleData.alertCode + 1) % 4);
+          // This key is now less relevant, but kept for legacy
           break;
         case '`':
           setState(() {
@@ -460,16 +476,11 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
           break;
         case '-':
           setState(() {
-            if (vehicleData.chargingState == 0) {
-              vehicleData.chargingState = 1;
-              vehicleData.pduState = 4;
-              vehicleData.chargingCurrent = 12.0;
-              vehicleData.chargingVoltage = 240.0;
-            } else {
-              vehicleData.chargingState = 0;
+            //toggle between pdu state 0 and 1
+            if (vehicleData.pduState >= 0) {
               vehicleData.pduState = 0;
-              vehicleData.chargingCurrent = 0.0;
-              vehicleData.chargingVoltage = 0.0;
+            } else {
+              vehicleData.pduState = 1;
             }
           });
           break;
@@ -512,13 +523,16 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
           });
           break;
         case '4':
-          setState(() => vehicleData.indicators = (vehicleData.indicators + 1) % 4);
+          setState(
+              () => vehicleData.indicators = (vehicleData.indicators + 1) % 4);
           break;
         case '5':
-          setState(() => vehicleData.highBeam = vehicleData.highBeam == 0 ? 1 : 0);
+          setState(
+              () => vehicleData.highBeam = vehicleData.highBeam == 0 ? 1 : 0);
           break;
         case '6':
-          setState(() => vehicleData.absWarning = vehicleData.absWarning == 0 ? 1 : 0);
+          setState(() =>
+              vehicleData.absWarning = vehicleData.absWarning == 0 ? 1 : 0);
           break;
         case '7':
           setState(() {
@@ -547,7 +561,7 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
           });
           break;
         case '9':
-          setState(() => vehicleData.errorCode = (vehicleData.errorCode + 1) % 5);
+          // This key is now less relevant, but kept for legacy
           break;
         case 'C':
           setState(() {
@@ -576,17 +590,28 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
           });
           break;
         case 'B':
-          setState(() => vehicleData.brakeStatus = vehicleData.brakeStatus == 0 ? 1 : 0);
+          setState(() =>
+              vehicleData.brakeStatus = vehicleData.brakeStatus == 0 ? 1 : 0);
           break;
+        // MODIFIED: 'T' key now cycles through error lists
         case 'T':
           setState(() {
-            vehicleData.alertCode = 1;
-            vehicleData.errorCode = 10;
+            _errorIndex = (_errorIndex + 1) % _errorCycles.length;
+            vehicleData.errors = _errorCycles[_errorIndex];
+            print('Server: Cycling errors to ${vehicleData.errors}');
+          });
+          break;
+        // ADDED: 'Q' key to cycle through alert lists
+        case 'Q':
+          setState(() {
+            _alertIndex = (_alertIndex + 1) % _alertCycles.length;
+            vehicleData.alerts = _alertCycles[_alertIndex];
+            print('Server: Cycling alerts to ${vehicleData.alerts}');
           });
           break;
         case 'H':
           setState(() {
-            vehicleData.alertCode = 2;
+            vehicleData.alerts = [2]; // High temp alert
             vehicleData.batteryTemp = 60;
           });
           break;
@@ -600,14 +625,15 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
         case 'M':
           setState(() {
             vehicleData.driveMode = (vehicleData.driveMode + 1) % 5;
-            vehicleData.speed = vehicleData.speed.clamp(0.0, modeMaxSpeeds[vehicleData.driveMode] ?? 75.0);
+            vehicleData.speed = vehicleData.speed
+                .clamp(0.0, modeMaxSpeeds[vehicleData.driveMode] ?? 75.0);
           });
           break;
         case 'R':
           setState(() {
             vehicleData.regenLevel = (vehicleData.regenLevel + 1) % 4;
-            // vehicleData.regenLevelSet = vehicleData.regenLevel; // This line is removed
-            print('Server: Key R pressed. regenLevel set to ${vehicleData.regenLevel}');
+            print(
+                'Server: Key R pressed. regenLevel set to ${vehicleData.regenLevel}');
           });
           break;
         case 'W':
@@ -733,12 +759,14 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
           _buildControlButton('6', 'ABS Warning'),
           _buildControlButton('7', 'Kill Switch'),
           _buildControlButton('8', 'Side Stand'),
-          _buildControlButton('9', 'Cycle Error Code'),
+          // ADDED: New button for cycling alerts
+          _buildControlButton('Q', 'Cycle Alerts'),
           _buildControlButton('C', 'Cycle Charge State'),
           _buildControlButton('M', 'Cycle Drive Mode'),
           _buildControlButton('Space', 'Accelerate'),
           _buildControlButton('X', 'Cycle Motor Temp'),
-          _buildControlButton('T', 'Thermal Alert'),
+          // MODIFIED: 'T' button label
+          _buildControlButton('T', 'Cycle Errors'),
           _buildControlButton('H', 'High Batt Temp Alert'),
           _buildControlButton('R', 'Cycle Regen Level'),
           _buildControlButton('-', 'Toggle Charging (Legacy)'),
@@ -792,29 +820,37 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
           Text('Speed: ${vehicleData.speed.toStringAsFixed(2)} km/h'),
           Text('Battery SOC: ${vehicleData.batterySOC.toStringAsFixed(0)}%'),
           Text('Drive Mode: ${vehicleData.driveMode}'),
-          Text('Kill Switch (0=Active/Killed, 1=Inactive/Can Run): ${vehicleData.killSwitch}'),
+          Text(
+              'Kill Switch (0=Active/Killed, 1=Inactive/Can Run): ${vehicleData.killSwitch}'),
           Text('Motor Status (0=Off, 1=On/Ready): ${vehicleData.motorStatus}'),
           Text('High Beam: ${vehicleData.highBeam}'),
           Text('Indicators: ${vehicleData.indicators}'),
           Text('Side Stand (0=Up, 1=Down): ${vehicleData.sideStand}'),
           Text('ABS Warning: ${vehicleData.absWarning}'),
           Text('PDU State: ${vehicleData.pduState}'),
-          Text('Charging State (0=No, 1=Charging, 2=Done): ${vehicleData.chargingState}'),
+          Text(
+              'Charging State (0=No, 1=Charging, 2=Done): ${vehicleData.chargingState}'),
           Text('ESL State: ${vehicleData.eslState}'),
           Text('Brake Status: ${vehicleData.brakeStatus}'),
           Text('Regen Level (Actual): ${vehicleData.regenLevel}'),
-          Text('AC Charging Mode (Actual): ${vehicleData.chargingModeAC}'), // Display new actual field
+          Text('AC Charging Mode (Actual): ${vehicleData.chargingModeAC}'),
           Text('WHP Km: ${vehicleData.whpKm.toStringAsFixed(2)}'),
           Text('Motor Temp: ${vehicleData.motorTemp}°C'),
           Text('Battery Temp: ${vehicleData.batteryTemp.toStringAsFixed(1)}°C'),
-          Text('Charging Current: ${vehicleData.chargingCurrent.toStringAsFixed(1)}A'),
-          Text('Charging Voltage: ${vehicleData.chargingVoltage.toStringAsFixed(1)}V'),
-          Text('GPS: (${vehicleData.gpsLat.toStringAsFixed(6)}, ${vehicleData.gpsLng.toStringAsFixed(6)})'),
-          Text('Accelerometer: X:${vehicleData.acc.x.toStringAsFixed(1)} Y:${vehicleData.acc.y.toStringAsFixed(1)} Z:${vehicleData.acc.z.toStringAsFixed(1)}'),
-          Text('Gyroscope: X:${vehicleData.gyro.x.toStringAsFixed(1)} Y:${vehicleData.gyro.y.toStringAsFixed(1)} Z:${vehicleData.gyro.z.toStringAsFixed(1)}'),
+          Text(
+              'Charging Current: ${vehicleData.chargingCurrent.toStringAsFixed(1)}A'),
+          Text(
+              'Charging Voltage: ${vehicleData.chargingVoltage.toStringAsFixed(1)}V'),
+          Text(
+              'GPS: (${vehicleData.gpsLat.toStringAsFixed(6)}, ${vehicleData.gpsLng.toStringAsFixed(6)})'),
+          Text(
+              'Accelerometer: X:${vehicleData.acc.x.toStringAsFixed(1)} Y:${vehicleData.acc.y.toStringAsFixed(1)} Z:${vehicleData.acc.z.toStringAsFixed(1)}'),
+          Text(
+              'Gyroscope: X:${vehicleData.gyro.x.toStringAsFixed(1)} Y:${vehicleData.gyro.y.toStringAsFixed(1)} Z:${vehicleData.gyro.z.toStringAsFixed(1)}'),
           Text('DPAD Raw: ${vehicleData.dpad}'),
-          Text('Error Code: ${vehicleData.errorCode}'),
-          Text('Alert Code: ${vehicleData.alertCode}'),
+          // MODIFIED: Display the lists of codes
+          Text('Errors: ${vehicleData.errors.toString()}'),
+          Text('Alerts: ${vehicleData.alerts.toString()}'),
         ],
       ),
     );
