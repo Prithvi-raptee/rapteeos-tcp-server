@@ -62,7 +62,6 @@ class Vector3 {
 }
 
 class VehicleData {
-  // MODIFIED: Replaced single int codes with lists
   List<int> errors;
   List<int> alerts;
   double batterySOC;
@@ -89,14 +88,13 @@ class VehicleData {
   Vector3 gyro;
   double odometer;
   double tripA;
-  int regenLevel; // Actual regen level
+  int regenLevel;
   double whpKm;
   int motorTemp;
-  int chargingModeAC; // Actual AC charging mode
+  int chargingModeAC;
 
   VehicleData()
-      : // MODIFIED: Initialize lists instead of ints
-        errors = [],
+      : errors = [],
         alerts = [],
         batterySOC = 0,
         throttle = 0,
@@ -120,20 +118,19 @@ class VehicleData {
         gpsLng = 0.0,
         acc = Vector3(0.0, 0.0, 0.0),
         gyro = Vector3(0.0, 0.0, 0.0),
-        odometer = 0.0,
+        odometer = 5565,
         tripA = 0.0,
-        regenLevel = 0, // Actual
+        regenLevel = 0,
         whpKm = 5.0,
         motorTemp = 0,
-        chargingModeAC = 0; // Actual
+        chargingModeAC = 0;
 
   Map<String, dynamic> toJson() => {
-        // MODIFIED: Send lists of codes with the correct keys
         'errors': errors,
         'alerts': alerts,
         'battery_soc': batterySOC,
         'throttle': throttle,
-        'speed': speed,
+        'speed': (speed * 10).round() / 10,
         'dpad': dpad,
         'killsw': killSwitch,
         'highbeam': highBeam,
@@ -175,40 +172,39 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
   VehicleData vehicleData = VehicleData();
   bool isServerRunning = false;
   String serverStatus = 'Server Stopped';
-  Timer? dataTimer;
+
+  // MODIFIED: Removed the main dataTimer, added a simulation-specific timer
+  Timer? _simulationTimer;
   Timer? chargeTimer;
+
   bool isAccelerating = false;
   final double accelerationTime = 3.5;
   final double decelerationTime = 4.0;
 
+  // ... (rest of the state variables remain the same)
   int _gpsToggleIndex = 0;
   int _motionIndex = 0;
   int _motorTempIndex = 0;
-
-  // ADDED: State for cycling through error and alert codes
   int _errorIndex = 0;
   final List<List<int>> _errorCycles = [
     [],
     [0, 2],
     [3]
   ];
-
   int _alertIndex = 0;
   final List<List<int>> _alertCycles = [
     [],
+    [5],
     [0, 3],
     [2]
   ];
-
   final List<int> _motorTempList = [34, 77, 89, 95];
-
   final List<List<double>> _gpsPoints = [
     [13.017953, 80.173781],
     [13.001177, 80.256496],
     [13.043505, 80.149617],
     [13.043401, 80.253390],
   ];
-
   final List<Vector3> dummyAccList = [
     Vector3(0.0, 0.0, 0.0),
     Vector3(1.1, -0.5, 0.3),
@@ -216,7 +212,6 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
     Vector3(0.0, 9.8, 0.0),
     Vector3(3.5, 1.2, -2.3),
   ];
-
   final List<Vector3> dummyGyroList = [
     Vector3(0.0, 0.0, 0.0),
     Vector3(0.1, 0.2, 0.3),
@@ -224,7 +219,6 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
     Vector3(1.0, 0.0, 0.0),
     Vector3(0.3, -0.3, 0.8),
   ];
-
   Map<int, int> modeThrottleLimits = {
     0: 128,
     1: 191,
@@ -232,7 +226,6 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
     3: 20,
     4: 20,
   };
-
   Map<int, double> modeMaxSpeeds = {
     0: 75.0,
     1: 90.0,
@@ -307,28 +300,22 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
                 if (newRegenSetValue is int) {
                   setState(() {
                     vehicleData.regenLevel = newRegenSetValue.clamp(0, 3);
-                    print(
-                        'Server: Updated regenLevel to ${vehicleData.regenLevel} from client command.');
                     dataChanged = true;
                   });
                 }
               }
-
               if (command.containsKey('set_charging_mode_ac')) {
                 final newChargingModeACSetValue =
                     command['set_charging_mode_ac'];
                 if (newChargingModeACSetValue is int) {
                   setState(() {
                     vehicleData.chargingModeAC = newChargingModeACSetValue;
-                    print(
-                        'Server: Updated chargingModeAC to ${vehicleData.chargingModeAC} from client command.');
                     dataChanged = true;
                   });
                 }
               }
-
               if (dataChanged) {
-                updateAndSendData();
+                broadcastData(); // MODIFIED: Call the new broadcast function
               }
             } catch (e) {
               print('Server: Error processing command from client: $e');
@@ -356,10 +343,9 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
         );
       });
 
-      dataTimer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
-        updateAndSendData();
-      });
+      // MODIFIED: Removed the persistent 50ms dataTimer
 
+      // Charge timer can remain as it's a low-frequency, periodic update
       chargeTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
         updateAndSendChargeData();
       });
@@ -372,11 +358,13 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
   }
 
   Future<void> stopServer() async {
-    dataTimer?.cancel();
-    dataTimer = null;
+    // MODIFIED: Cancel the new simulation timer as well
+    _simulationTimer?.cancel();
+    _simulationTimer = null;
     chargeTimer?.cancel();
     chargeTimer = null;
 
+    // ... (rest of stopServer logic is the same)
     List<Socket> clientsToDestroy = List.from(clients);
     for (var client in clientsToDestroy) {
       try {
@@ -386,7 +374,6 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
       }
     }
     clients.clear();
-
     try {
       await server?.close();
     } catch (e) {
@@ -404,21 +391,40 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
     }
   }
 
-  void updateAndSendData() {
-    if (isServerRunning && clients.isNotEmpty) {
+  // NEW: A dedicated function to run the continuous simulation
+  void _runSimulationLoop() {
+    // Stop the timer if the vehicle is not accelerating and has come to a stop.
+    if (!isAccelerating &&
+        vehicleData.speed <= 0.1 &&
+        vehicleData.throttle <= 0) {
+      _simulationTimer?.cancel();
+      _simulationTimer = null;
       setState(() {
-        double acceleration = calculateAcceleration(vehicleData.speed);
-        vehicleData.speed += acceleration;
-
-        vehicleData.whpKm = vehicleData.throttle > 0
-            ? vehicleData.whpKm + (vehicleData.speed * 0.921371) / 100
-            : vehicleData.whpKm - (vehicleData.speed * 0.921371) / 100;
-        vehicleData.whpKm = vehicleData.whpKm < 0.5 ? 0.5 : vehicleData.whpKm;
-
-        final maxSpeed = modeMaxSpeeds[vehicleData.driveMode] ?? 75.0;
-        vehicleData.speed = vehicleData.speed.clamp(0.0, maxSpeed);
+        vehicleData.speed = 0; // Clamp to exactly 0
+        vehicleData.throttle = 0;
       });
+      broadcastData(); // Send the final state
+      return;
+    }
 
+    // Perform one step of the simulation
+    setState(() {
+      double acceleration = calculateAcceleration(vehicleData.speed);
+      vehicleData.speed += acceleration;
+      vehicleData.whpKm = vehicleData.throttle > 0
+          ? vehicleData.whpKm + (vehicleData.speed * 0.921371) / 100
+          : vehicleData.whpKm - (vehicleData.speed * 0.921371) / 100;
+      vehicleData.whpKm = vehicleData.whpKm < 0.5 ? 0.5 : vehicleData.whpKm;
+      final maxSpeed = modeMaxSpeeds[vehicleData.driveMode] ?? 75.0;
+      vehicleData.speed = vehicleData.speed.clamp(0.0, maxSpeed);
+    });
+
+    broadcastData(); // Broadcast the changes from this simulation step
+  }
+
+  // MODIFIED: Renamed from updateAndSendData and simplified
+  void broadcastData() {
+    if (isServerRunning && clients.isNotEmpty) {
       final jsonData = jsonEncode(vehicleData.toJson());
       for (var client in List<Socket>.from(clients)) {
         try {
@@ -439,33 +445,32 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
         vehicleData.batteryTemp = (vehicleData.batteryTemp + 1).clamp(24, 57);
         if (vehicleData.batteryTemp > 57) vehicleData.batteryTemp = 24;
       });
-
-      final jsonData = jsonEncode(vehicleData.toJson());
-      for (var client in List<Socket>.from(clients)) {
-        try {
-          client.write(jsonData);
-        } catch (e) {
-          print(
-              'Error sending charge data to client ${client.remoteAddress.address}: $e');
-        }
-      }
+      broadcastData(); // Use the common broadcast function
     }
   }
 
   void handleKeyPress(RawKeyEvent event) {
     if (event is RawKeyDownEvent) {
+      // MODIFIED: Start the simulation timer on spacebar press
       if (event.logicalKey == LogicalKeyboardKey.space) {
-        setState(() => isAccelerating = true);
+        if (!isAccelerating) {
+          setState(() => isAccelerating = true);
+          // Start the timer only if it's not already running
+          if (_simulationTimer == null || !_simulationTimer!.isActive) {
+            _simulationTimer =
+                Timer.periodic(const Duration(milliseconds: 50), (timer) {
+              _runSimulationLoop();
+            });
+          }
+        }
+        return; // Return to avoid double processing
       }
 
       bool needsUpdate = true;
-
       switch (event.logicalKey.keyLabel.toUpperCase()) {
         case '!':
-          // This key is now less relevant, but kept for legacy
           break;
         case '@':
-          // This key is now less relevant, but kept for legacy
           break;
         case '`':
           setState(() {
@@ -476,7 +481,6 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
           break;
         case '-':
           setState(() {
-            //toggle between pdu state 0 and 1
             if (vehicleData.pduState >= 0) {
               vehicleData.pduState = 0;
             } else {
@@ -516,7 +520,6 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
             } else if (vehicleData.killSwitch == 0 &&
                 vehicleData.motorStatus == 0 &&
                 vehicleData.sideStand == 1) {
-              print("Cannot start, side stand is down");
               needsUpdate = false;
             }
             if (vehicleData.motorStatus == 0) vehicleData.whpKm = 0;
@@ -556,12 +559,10 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
               vehicleData.speed = 0;
               isAccelerating = false;
               vehicleData.throttle = 0;
-              print("Motor turned off due to side stand.");
             }
           });
           break;
         case '9':
-          // This key is now less relevant, but kept for legacy
           break;
         case 'C':
           setState(() {
@@ -593,25 +594,21 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
           setState(() =>
               vehicleData.brakeStatus = vehicleData.brakeStatus == 0 ? 1 : 0);
           break;
-        // MODIFIED: 'T' key now cycles through error lists
         case 'T':
           setState(() {
             _errorIndex = (_errorIndex + 1) % _errorCycles.length;
             vehicleData.errors = _errorCycles[_errorIndex];
-            print('Server: Cycling errors to ${vehicleData.errors}');
           });
           break;
-        // ADDED: 'Q' key to cycle through alert lists
         case 'Q':
           setState(() {
             _alertIndex = (_alertIndex + 1) % _alertCycles.length;
             vehicleData.alerts = _alertCycles[_alertIndex];
-            print('Server: Cycling alerts to ${vehicleData.alerts}');
           });
           break;
         case 'H':
           setState(() {
-            vehicleData.alerts = [2]; // High temp alert
+            vehicleData.alerts = [2];
             vehicleData.batteryTemp = 60;
           });
           break;
@@ -632,36 +629,36 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
         case 'R':
           setState(() {
             vehicleData.regenLevel = (vehicleData.regenLevel + 1) % 4;
-            print(
-                'Server: Key R pressed. regenLevel set to ${vehicleData.regenLevel}');
           });
           break;
         case 'W':
           setState(() => vehicleData.dpad |= (1 << 1));
-          needsUpdate = false;
-          break;
+          break; // DPAD will be sent on key up
         case 'D':
           setState(() => vehicleData.dpad |= (1 << 2));
-          needsUpdate = false;
           break;
         case 'A':
           setState(() => vehicleData.dpad |= (1 << 0));
-          needsUpdate = false;
           break;
         case 'S':
           setState(() => vehicleData.dpad |= (1 << 3));
-          needsUpdate = false;
           break;
         default:
           needsUpdate = false;
           break;
       }
+      // MODIFIED: Call broadcastData directly if a key press changed the state
       if (needsUpdate && mounted) {
-        updateAndSendData();
+        broadcastData();
       }
     } else if (event is RawKeyUpEvent) {
+      // MODIFIED: Set isAccelerating to false on spacebar release.
+      // The simulation loop will handle the gradual deceleration.
       if (event.logicalKey == LogicalKeyboardKey.space) {
-        setState(() => isAccelerating = false);
+        if (isAccelerating) {
+          setState(() => isAccelerating = false);
+        }
+        return;
       }
 
       bool dpadChanged = false;
@@ -685,12 +682,15 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
             break;
         }
       });
+      // MODIFIED: Call broadcastData if DPAD state changed
       if (dpadChanged && mounted) {
-        updateAndSendData();
+        broadcastData();
       }
     }
   }
 
+  // ... (The entire build method and its helpers _buildControlGrid,
+  //      _buildControlButton, and _buildDataDisplay remain exactly the same)
   @override
   Widget build(BuildContext context) {
     return RawKeyboardListener(
@@ -759,13 +759,11 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
           _buildControlButton('6', 'ABS Warning'),
           _buildControlButton('7', 'Kill Switch'),
           _buildControlButton('8', 'Side Stand'),
-          // ADDED: New button for cycling alerts
           _buildControlButton('Q', 'Cycle Alerts'),
           _buildControlButton('C', 'Cycle Charge State'),
           _buildControlButton('M', 'Cycle Drive Mode'),
           _buildControlButton('Space', 'Accelerate'),
           _buildControlButton('X', 'Cycle Motor Temp'),
-          // MODIFIED: 'T' button label
           _buildControlButton('T', 'Cycle Errors'),
           _buildControlButton('H', 'High Batt Temp Alert'),
           _buildControlButton('R', 'Cycle Regen Level'),
@@ -848,7 +846,6 @@ class _VehicleSimulatorState extends State<VehicleSimulator> {
           Text(
               'Gyroscope: X:${vehicleData.gyro.x.toStringAsFixed(1)} Y:${vehicleData.gyro.y.toStringAsFixed(1)} Z:${vehicleData.gyro.z.toStringAsFixed(1)}'),
           Text('DPAD Raw: ${vehicleData.dpad}'),
-          // MODIFIED: Display the lists of codes
           Text('Errors: ${vehicleData.errors.toString()}'),
           Text('Alerts: ${vehicleData.alerts.toString()}'),
         ],
